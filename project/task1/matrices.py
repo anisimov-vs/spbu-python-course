@@ -4,7 +4,7 @@
 ## - Expects pre-injected globals: operation (str) and matrices (list with [m1, m2] or [m]).
 ## - Minimal shape checks only; arithmetic follows standard linear algebra definitions.
 ## @section operations_sec Supported operations
-## @par add 
+## @par add
 ## @brief Element-wise matrix addition.
 ## @details Requires same shape; OUT[i][j] = m1[i][j] + m2[i][j].
 ## @par multiply
@@ -82,7 +82,6 @@ match operation:
             for i in range(len(m1))
         ]
 
-    
     case "transpose":
         OUT = [[m[j][i] for j in range(len(m))] for i in range(len(m[0]))]
 
