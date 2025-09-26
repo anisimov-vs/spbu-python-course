@@ -17,7 +17,7 @@
 
 
 import math
-from typing import Union, cast
+from typing import Union
 
 __all__ = ["OUT"]
 
