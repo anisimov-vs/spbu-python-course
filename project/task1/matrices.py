@@ -3,6 +3,16 @@
 ## @details
 ## - Expects pre-injected globals: operation (str) and matrices (list with [m1, m2] or [m]).
 ## - Minimal shape checks only; arithmetic follows standard linear algebra definitions.
+## @section operations_sec Supported operations
+## @par add 
+## @brief Element-wise matrix addition.
+## @details Requires same shape; OUT[i][j] = m1[i][j] + m2[i][j].
+## @par multiply
+## @brief Matrix product A·B.
+## @details Requires inner dimension match; OUT[i][j] = Σ_k m1[i][k]·m2[k][j].
+## @par transpose
+## @brief transpose: matrix transpose M^T.
+## @details OUT[i][j] = M[j][i]; rows become columns.
 
 import math
 from typing import Union
@@ -56,15 +66,11 @@ else:
     m1, m2 = matrices[0], matrices[1]
 
 match operation:
-    ## @brief add: element-wise matrix addition.
-    ## @details Requires same shape; OUT[i][j] = m1[i][j] + m2[i][j].
     case "add":
         if len(m1) != len(m2) or len(m1[0]) != len(m2[0]):
             raise ValueError("For 'add', matrices must have identical dimensions (m×n)")
         OUT = [[m1[i][j] + m2[i][j] for j in range(len(m1[0]))] for i in range(len(m1))]
 
-    ## @brief multiply: matrix product A·B.
-    ## @details Requires inner dimension match; OUT[i][j] = Σ_k m1[i][k]·m2[k][j].
     case "multiply":
         if len(m1[0]) != len(m2):
             raise ValueError("For 'multiply', inner dims must match: A(m×p)·B(p×n)")
@@ -76,8 +82,7 @@ match operation:
             for i in range(len(m1))
         ]
 
-    ## @brief transpose: matrix transpose M^T.
-    ## @details OUT[i][j] = M[j][i]; rows become columns.
+    
     case "transpose":
         OUT = [[m[j][i] for j in range(len(m))] for i in range(len(m[0]))]
 

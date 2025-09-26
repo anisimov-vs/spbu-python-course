@@ -3,8 +3,14 @@ name: Check code style
 on:
   [ push, pull_request ]
 
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+
 jobs:
-  style:
+  tests:
     runs-on: ubuntu-latest
 
     strategy:
@@ -48,3 +54,27 @@ jobs:
       - name: Run mypy
         run: |
           python -m mypy --config-file mypy.ini --python-version 3.12 project tests scripts
+
+  documentation-build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Doxygen and Graphviz
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y doxygen graphviz
+
+      - name: Generate Doxygen documentation
+        run: doxygen Doxyfile
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './html'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
