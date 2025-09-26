@@ -12,8 +12,8 @@ __all__ = ["OUT"]
 
 # Require pre-injected globals
 _SENTINEL: object = object()
-operation: str | object = globals().get("operation", _SENTINEL) # type: ignore
-vectors: list[list[Union[int, float]]] = globals().get("vectors", _SENTINEL) # type: ignore
+operation: str | object = globals().get("operation", _SENTINEL)  # type: ignore
+vectors: list[list[Union[int, float]]] = globals().get("vectors", _SENTINEL)  # type: ignore
 if operation is _SENTINEL or vectors is _SENTINEL:
     raise RuntimeError("Provide globals 'operation' and 'vectors' before import")
 
@@ -33,13 +33,21 @@ if not all(isinstance(v, (list, tuple)) for v in vectors):
 for vec in vectors:
     if isinstance(vec, (list, tuple)):
         for x in vec:
-            if not (isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(float(x))):
-                raise TypeError("Lists in 'vectors' must contain only finite numbers (no bool/NaN/Inf)")
+            if not (
+                isinstance(x, (int, float))
+                and not isinstance(x, bool)
+                and math.isfinite(float(x))
+            ):
+                raise TypeError(
+                    "Lists in 'vectors' must contain only finite numbers (no bool/NaN/Inf)"
+                )
 
 if operation == "length" and len(vectors) != 1:
     raise ValueError("'vectors' must consist exactly 1 list for 'length' operation")
 if operation in ("product", "angle") and len(vectors) != 2:
-    raise ValueError("'vectors' must consist exactly 2 lists for 'product'/'angle' operation")
+    raise ValueError(
+        "'vectors' must consist exactly 2 lists for 'product'/'angle' operation"
+    )
 
 if any(len(v) == 0 for v in vectors):
     raise ValueError("Vectors must be non-empty")
