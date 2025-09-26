@@ -40,12 +40,11 @@ jobs:
       - name: Run pre-commit
         run: |
           pre-commit run --all-files --color always --verbose --show-diff-on-failure
-      
+
       - name: Run pytests
         run: |
           python ./scripts/run_tests.py
-          
+
       - name: Run mypy
         run: |
           python -m mypy --config-file mypy.ini --python-version 3.12 project tests scripts
-      
