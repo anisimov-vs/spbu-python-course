@@ -6,7 +6,7 @@ from pathlib import Path
 from uuid import uuid4
 import importlib.util
 import pytest
-from typing import Any, Union
+from typing import Union
 
 
 ROOT = Path(__file__).resolve().parents[1]

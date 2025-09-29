@@ -6,13 +6,13 @@
 ## @section operations_sec Supported operations
 ## @par add
 ## @brief Element-wise matrix addition.
-## @details Requires same shape; OUT[i][j] = m1[i][j] + m2[i][j].
+## @details Requires same shape; out[i][j] = m1[i][j] + m2[i][j].
 ## @par multiply
 ## @brief Matrix product A·B.
-## @details Requires inner dimension match; OUT[i][j] = Σ_k m1[i][k]·m2[k][j].
+## @details Requires inner dimension match; out[i][j] = Σ_k m1[i][k]·m2[k][j].
 ## @par transpose
 ## @brief transpose: matrix transpose M^T.
-## @details OUT[i][j] = M[j][i]; rows become columns.
+## @details out[i][j] = M[j][i]; rows become columns.
 
 import math
 from typing import Union, cast

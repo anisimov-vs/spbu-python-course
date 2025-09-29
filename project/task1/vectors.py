@@ -2,18 +2,18 @@
 ## @brief Module-level vector ops (product, length, angle) without functions/classes.
 ## @details
 ## - Expects pre-injected globals: operation (str) and vectors (list/tuple of 1 or 2 lists).
-## - Single upfront validation for shape and numeric finiteness; OUT computed via match/case.
+## - Single upfront validation for shape and numeric finiteness; out computed via match/case.
 ## - Angle is acute: acos(|dot|/(||v1||·||v2||)) in ra dians, with clamping to [-1, 1] for stability.
 ## @section operations_sec Supported operations
 ## @par product
 ## @brief Scalar (dot) product of two equal-length numeric vectors.
-## @details OUT = sum(x_i * y_i); inputs validated above for arity, shape, and finiteness.
+## @details out = sum(x_i * y_i); inputs validated above for arity, shape, and finiteness.
 ## @par length
 ## @brief Euclidean norm of a numeric vector.
-## @details OUT = sqrt(sum(x_i^2)); elements are finite numbers by unified validation.
+## @details out = sqrt(sum(x_i^2)); elements are finite numbers by unified validation.
 ## @par angle
 ## @brief Acute angle (radians) between two nonzero numeric vectors.
-## @details OUT = acos(|dot|/(||v1||·||v2||)), with clamp to [-1, 1] for numerical safety.
+## @details out = acos(|dot|/(||v1||·||v2||)), with clamp to [-1, 1] for numerical safety.
 
 
 import math
