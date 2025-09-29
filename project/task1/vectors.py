@@ -17,14 +17,17 @@
 
 
 import math
-from typing import Union
+from typing import Union, cast
 
-__all__ = ["OUT"]
+__all__ = ["out"]
 
 # Require pre-injected globals
 _SENTINEL: object = object()
-operation: str | object = globals().get("operation", _SENTINEL)  # type: ignore
-vectors: list[list[Union[int, float]]] = globals().get("vectors", _SENTINEL)  # type: ignore
+_globals = cast(dict[str, object], globals())
+operation: Union[str, object] = _globals.get("operation", _SENTINEL)
+vectors: Union[list[list[Union[int, float]]], object] = _globals.get(
+    "vectors", _SENTINEL
+)
 if operation is _SENTINEL or vectors is _SENTINEL:
     raise RuntimeError("Provide globals 'operation' and 'vectors' before import")
 
@@ -73,10 +76,10 @@ else:
 
 match operation:
     case "product":
-        OUT = math.fsum(x * y for x, y in zip(v1, v2))
+        out = math.fsum(x * y for x, y in zip(v1, v2))
 
     case "length":
-        OUT = math.sqrt(math.fsum(x * x for x in v))
+        out = math.sqrt(math.fsum(x * x for x in v))
 
     case "angle":
         dot = math.fsum(x * y for x, y in zip(v1, v2))
@@ -86,7 +89,7 @@ match operation:
             raise ValueError("The vectors must be nonzero vectors")
         c = abs(dot) / (l1 * l2)
         c = -1.0 if c < -1.0 else (1.0 if c > 1.0 else c)
-        OUT = math.acos(c)
+        out = math.acos(c)
 
     ## @brief invalid operation (defensive; unreachable due to early validation).
     case _:

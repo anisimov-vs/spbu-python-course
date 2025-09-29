@@ -15,13 +15,17 @@
 ## @details OUT[i][j] = M[j][i]; rows become columns.
 
 import math
-from typing import Union
+from typing import Union, cast
 
-__all__ = ["OUT"]
+__all__ = ["out"]
 
+# Require pre-injected globals
 _SENTINEL: object = object()
-operation: str | object = globals().get("operation", _SENTINEL)  # type: ignore
-matrices: list[list[list[Union[int, float]]]] = globals().get("matrices", _SENTINEL)  # type: ignore
+_globals = cast(dict[str, object], globals())
+operation: Union[str, object] = _globals.get("operation", _SENTINEL)
+matrices: Union[list[list[list[Union[int, float]]]], object] = _globals.get(
+    "matrices", _SENTINEL
+)
 if operation is _SENTINEL or matrices is _SENTINEL:
     raise RuntimeError("Provide globals 'operation' and 'matrices' before import")
 
@@ -59,22 +63,25 @@ for matrix in matrices:
 if operation == "transpose":
     if len(matrices) != 1:
         raise ValueError("For 'transpose' provide exactly one matrix: [m]")
-    m = matrices[0]
+    m: list[list[Union[int, float]]] = matrices[0]
 else:
     if len(matrices) != 2:
         raise ValueError("For 'add'/'multiply' provide exactly two matrices: [m1, m2]")
-    m1, m2 = matrices[0], matrices[1]
+    m1: list[list[Union[int, float]]] = matrices[0]
+    m2: list[list[Union[int, float]]] = matrices[1]
 
 match operation:
     case "add":
         if len(m1) != len(m2) or len(m1[0]) != len(m2[0]):
             raise ValueError("For 'add', matrices must have identical dimensions (m×n)")
-        OUT = [[m1[i][j] + m2[i][j] for j in range(len(m1[0]))] for i in range(len(m1))]
+        out: list[list[Union[int, float]]] = [
+            [m1[i][j] + m2[i][j] for j in range(len(m1[0]))] for i in range(len(m1))
+        ]
 
     case "multiply":
         if len(m1[0]) != len(m2):
             raise ValueError("For 'multiply', inner dims must match: A(m×p)·B(p×n)")
-        OUT = [
+        out = [
             [
                 sum(m1[i][k] * m2[k][j] for k in range(len(m1[0])))
                 for j in range(len(m2[0]))
@@ -83,7 +90,7 @@ match operation:
         ]
 
     case "transpose":
-        OUT = [[m[j][i] for j in range(len(m))] for i in range(len(m[0]))]
+        out = [[m[j][i] for j in range(len(m))] for i in range(len(m[0]))]
 
     ## @brief invalid op (defensive).
     case _:
