@@ -19,6 +19,7 @@ from project.task2.operations import (
     reduce_op,
     take_while_op,
     drop_while_op,
+    zip_op,
 )
 from project.task2.aggregators import (
     to_list,
@@ -177,6 +178,59 @@ def test_reduce_op_product() -> None:
 
     result = to_list(reduce_op(multiply, 1)(range(1, 5)))
     assert result == [24]
+
+
+def test_zip_op_basic() -> None:
+    left = [1, 2, 3]
+    right = ["a", "b", "c"]
+    result = to_list(zip_op(right)(left))
+    assert result == [(1, "a"), (2, "b"), (3, "c")]
+
+
+def test_zip_op_different_lengths_left_shorter() -> None:
+    left = [1, 2]
+    right = ["a", "b", "c"]
+    result = to_list(zip_op(right)(left))
+    assert result == [(1, "a"), (2, "b")]
+
+
+def test_zip_op_different_lengths_right_shorter() -> None:
+    left = [1, 2, 3]
+    right = ["a"]
+    result = to_list(zip_op(right)(left))
+    assert result == [(1, "a")]
+
+
+def test_zip_op_empty_left() -> None:
+    left: list[int] = []
+    right = ["a", "b"]
+    result = to_list(zip_op(right)(left))
+    assert result == []
+
+
+def test_zip_op_empty_right() -> None:
+    left = [1, 2]
+    right: list[str] = []
+    result = to_list(zip_op(right)(left))
+    assert result == []
+
+
+def test_zip_op_multiple_streams() -> None:
+    a = [1, 2, 3]
+    b = ["x", "y", "z"]
+    c = [True, False, True]
+    result = to_list(zip_op(b, c)(a))
+    assert result == [(1, "x", True), (2, "y", False), (3, "z", True)]
+
+
+def test_zip_op_with_pipeline_and_take() -> None:
+    # Ensure laziness with take_op on zipped stream
+    left = range_generator(0, 100)
+    right = (chr(ord("a") + i) for i in range(100))
+    zipped = zip_op(right)(left)
+    limited = take_op(5)(zipped)
+    result = to_list(limited)
+    assert result == [(0, "a"), (1, "b"), (2, "c"), (3, "d"), (4, "e")]
 
 
 # Test Pipeline - chain operations directly without pipeline() for complex cases

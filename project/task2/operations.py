@@ -2,7 +2,7 @@
 ## @brief Pipeline operations for transforming and filtering data streams.
 ## @details Provides map, filter, compress, reduce and other stream operations.
 
-from typing import Generator, Callable, TypeVar, Iterable, Tuple
+from typing import Iterable, Iterator, Generator, Callable, TypeVar, cast
 from functools import reduce as functools_reduce
 
 T = TypeVar("T")
@@ -249,55 +249,32 @@ def reduce_op(
     return operation
 
 
-def zip2_op(
-    other: Iterable[U],
-) -> Callable[[Iterable[T]], Generator[Tuple[T, U], None, None]]:
+def zip_op(
+    *others: Iterable[object],
+) -> Callable[[Iterable[object]], Generator[tuple[object, ...], None, None]]:
     """
-    Create a zip operation for two streams without using Any.
+    Create a zip operation that zips the input iterable with others, lazily.
 
     Args:
-        other: Second iterable to zip with the input stream.
+        *others: Other iterables to zip with the input stream.
 
     Returns:
-        Operation that yields (left, right) tuples element-wise.
+        Operation that yields tuples of aligned elements; stops at the shortest stream.
 
     Examples:
         >>> left = [1, 2, 3]
         >>> right = ["a", "b", "c"]
-        >>> list(zip2_op(right)(left))
+        >>> list(zip_op(right)(left))
         [(1, 'a'), (2, 'b'), (3, 'c')]
     """
 
-    def operation(iterable: Iterable[T]) -> Generator[Tuple[T, U], None, None]:
-        for a, b in zip(iterable, other):
-            yield (a, b)
-
-    return operation
-
-
-def zip3_op(
-    other1: Iterable[U], other2: Iterable[V]
-) -> Callable[[Iterable[T]], Generator[Tuple[T, U, V], None, None]]:
-    """
-    Create a zip operation for three streams without using Any.
-
-    Args:
-        other1: Second iterable to zip with the input stream.
-        other2: Third iterable to zip with the input stream.
-
-    Returns:
-        Operation that yields (x, y, z) tuples element-wise.
-
-    Examples:
-        >>> a = [1, 2, 3]
-        >>> b = ["a", "b", "c"]
-        >>> c = [True, False, True]
-        >>> list(zip3_op(b, c)(a))
-        [(1, 'a', True), (2, 'b', False), (3, 'c', True)]
-    """
-
-    def operation(iterable: Iterable[T]) -> Generator[Tuple[T, U, V], None, None]:
-        for t, u, v in zip(iterable, other1, other2):
-            yield (t, u, v)
+    def operation(
+        iterable: Iterable[object],
+    ) -> Generator[tuple[object, ...], None, None]:
+        zipped: Iterator[tuple[object, ...]] = cast(
+            Iterator[tuple[object, ...]], zip(iterable, *others)
+        )
+        for items in zipped:
+            yield items
 
     return operation
