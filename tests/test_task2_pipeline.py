@@ -19,7 +19,6 @@ def sample_dict() -> dict[str, int]:
     return {"a": 1, "b": 2, "c": 3}
 
 
-
 def double(x: int) -> int:
     return x * 2
 
@@ -58,7 +57,6 @@ def op_filter_greater_than_five(it: Iterable[object]) -> Iterable[int]:
 
 def op_map_inc(it: Iterable[object]) -> Iterable[int]:
     return map(inc, cast(Iterable[int], it))
-
 
 
 def test_stream_from_iterable(sample_numbers: list[int]) -> None:
@@ -241,6 +239,9 @@ def test_laziness_infinite_callable_with_islice() -> None:
     ],
 )
 def test_pipeline_parametrized(
-    start: int, stop: int, op: Callable[[Iterable[object]], Iterable[object]], expected: list[int]
+    start: int,
+    stop: int,
+    op: Callable[[Iterable[object]], Iterable[object]],
+    expected: list[int],
 ) -> None:
     assert list(pipeline(stream(range(start, stop)), op)) == expected

@@ -15,23 +15,69 @@ _MISSING = object()
 
 
 @overload
-def stream(source: Callable[[], T], *, count: int, sentinel: object = _MISSING, dict_mode: str = "keys") -> Iterator[T]: ...
-@overload
-def stream(source: Callable[[], T], *, count: None = None, sentinel: object, dict_mode: str = "keys") -> Iterator[T]: ...
+def stream(
+    source: Callable[[], T],
+    *,
+    count: int,
+    sentinel: object = _MISSING,
+    dict_mode: str = "keys",
+) -> Iterator[T]:
+    ...
+
+
 @overload
 def stream(
-    source: Mapping[K, V], *, count: int | None = None, sentinel: object = _MISSING, dict_mode: Literal["keys"] = "keys"
-) -> Iterator[K]: ...
+    source: Callable[[], T],
+    *,
+    count: None = None,
+    sentinel: object,
+    dict_mode: str = "keys",
+) -> Iterator[T]:
+    ...
+
+
 @overload
 def stream(
-    source: Mapping[K, V], *, count: int | None = None, sentinel: object = _MISSING, dict_mode: Literal["values"]
-) -> Iterator[V]: ...
+    source: Mapping[K, V],
+    *,
+    count: int | None = None,
+    sentinel: object = _MISSING,
+    dict_mode: Literal["keys"] = "keys",
+) -> Iterator[K]:
+    ...
+
+
 @overload
 def stream(
-    source: Mapping[K, V], *, count: int | None = None, sentinel: object = _MISSING, dict_mode: Literal["items"]
-) -> Iterator[tuple[K, V]]: ...
+    source: Mapping[K, V],
+    *,
+    count: int | None = None,
+    sentinel: object = _MISSING,
+    dict_mode: Literal["values"],
+) -> Iterator[V]:
+    ...
+
+
 @overload
-def stream(source: Iterable[T], *, count: int | None = None, sentinel: object = _MISSING, dict_mode: str = "keys") -> Iterator[T]: ...
+def stream(
+    source: Mapping[K, V],
+    *,
+    count: int | None = None,
+    sentinel: object = _MISSING,
+    dict_mode: Literal["items"],
+) -> Iterator[tuple[K, V]]:
+    ...
+
+
+@overload
+def stream(
+    source: Iterable[T],
+    *,
+    count: int | None = None,
+    sentinel: object = _MISSING,
+    dict_mode: str = "keys",
+) -> Iterator[T]:
+    ...
 
 
 def stream(
@@ -100,7 +146,9 @@ def stream(
     )
 
 
-def pipeline(source: Iterable[T], *operations: Callable[[Iterable[object]], Iterable[object]]) -> Iterable[object]:
+def pipeline(
+    source: Iterable[T], *operations: Callable[[Iterable[object]], Iterable[object]]
+) -> Iterable[object]:
     """
     Lazily apply a sequence of operations to a source.
 
@@ -113,11 +161,13 @@ def pipeline(source: Iterable[T], *operations: Callable[[Iterable[object]], Iter
 
 
 @overload
-def aggregate(iterable: Iterable[T]) -> list[T]: ...
+def aggregate(iterable: Iterable[T]) -> list[T]:
+    ...
 
 
 @overload
-def aggregate(iterable: Iterable[T], collector: Callable[[Iterable[T]], U]) -> U: ...
+def aggregate(iterable: Iterable[T], collector: Callable[[Iterable[T]], U]) -> U:
+    ...
 
 
 def aggregate(
