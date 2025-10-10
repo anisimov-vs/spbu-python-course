@@ -1,465 +1,210 @@
 # tests/test_task2_pipeline.py
 
+import itertools
+from functools import partial, reduce
 import pytest
-from typing import Generator
 
-from project.task2.generators import (
-    range_generator,
-    sequence_generator,
-    repeat_generator,
-    custom_generator,
-)
-from project.task2.operations import (
-    pipeline,
-    map_op,
-    filter_op,
-    compress_op,
-    take_op,
-    drop_op,
-    reduce_op,
-    take_while_op,
-    drop_while_op,
-    zip_op,
-)
-from project.task2.aggregators import (
-    to_list,
-    to_set,
-    to_dict,
-    count,
-    sum_all,
-    product_all,
-    min_value,
-    max_value,
-    first,
-    last,
-)
+from project.task2.pipeline import stream, pipeline, aggregate
 
 
-# Test Generators
-def test_range_generator_basic() -> None:
-    result = to_list(range_generator(0, 5))
-    assert result == [0, 1, 2, 3, 4]
+# Fixtures
+@pytest.fixture
+def sample_numbers() -> list[int]:
+    return [1, 2, 3, 4, 5]
 
 
-def test_range_generator_with_step() -> None:
-    result = to_list(range_generator(0, 10, 2))
-    assert result == [0, 2, 4, 6, 8]
+@pytest.fixture
+def sample_dict() -> dict[str, int]:
+    return {"a": 1, "b": 2, "c": 3}
 
 
-def test_range_generator_negative_step() -> None:
-    result = to_list(range_generator(10, 0, -2))
-    assert result == [10, 8, 6, 4, 2]
+# Helper functions
 
+def double(x: int) -> int:
+    return x * 2
 
-def test_range_generator_zero_step_raises() -> None:
-    with pytest.raises(ValueError):
-        to_list(range_generator(0, 5, 0))
 
+def square(x: int) -> int:
+    return x ** 2
 
-def test_sequence_generator() -> None:
-    result = to_list(sequence_generator([1, 2, 3, 4]))
-    assert result == [1, 2, 3, 4]
 
+def is_even(x: int) -> bool:
+    return x % 2 == 0
 
-def test_repeat_generator_finite() -> None:
-    result = to_list(repeat_generator("x", 3))
-    assert result == ["x", "x", "x"]
 
+def greater_than_five(x: int) -> bool:
+    return x > 5
 
-def test_repeat_generator_infinite() -> None:
-    gen = repeat_generator(5, None)
-    result = to_list(take_op(5)(gen))
-    assert result == [5, 5, 5, 5, 5]
 
+def inc(x: int) -> int:
+    return x + 1
 
-def test_repeat_generator_negative_times_raises() -> None:
-    with pytest.raises(ValueError):
-        to_list(repeat_generator(1, -1))
 
+# stream() source unification
 
-def test_custom_generator() -> None:
-    def my_gen() -> Generator[int, None, None]:
-        yield 1
-        yield 2
-        yield 3
+def test_stream_from_iterable(sample_numbers):
+    assert list(stream(sample_numbers)) == [1, 2, 3, 4, 5]
 
-    result = to_list(custom_generator(my_gen))
-    assert result == [1, 2, 3]
 
+def test_stream_from_mapping_keys(sample_dict):
+    assert set(stream(sample_dict, dict_mode="keys")) == {"a", "b", "c"}
 
-# Test Operations
-def test_map_op_basic() -> None:
-    def double(x: int) -> int:
-        return x * 2
 
-    result = to_list(map_op(double)(range(5)))
-    assert result == [0, 2, 4, 6, 8]
+def test_stream_from_mapping_values(sample_dict):
+    assert set(stream(sample_dict, dict_mode="values")) == {1, 2, 3}
 
 
-def test_filter_op_basic() -> None:
-    def is_even(x: int) -> bool:
-        return x % 2 == 0
+def test_stream_from_mapping_items(sample_dict):
+    assert set(stream(sample_dict, dict_mode="items")) == {("a", 1), ("b", 2), ("c", 3)}
 
-    result = to_list(filter_op(is_even)(range(10)))
-    assert result == [0, 2, 4, 6, 8]
 
+def test_stream_from_slice():
+    assert list(stream(slice(0, 6, 2))) == [0, 2, 4]
 
-def test_compress_op_basic() -> None:
-    data = [1, 2, 3, 4, 5]
-    selectors = [True, False, True, False, True]
-    result = to_list(compress_op(selectors)(data))
-    assert result == [1, 3, 5]
 
+def test_stream_from_numeric_tuple():
+    assert list(stream((5,))) == [0, 1, 2, 3, 4]
+    assert list(stream((1, 5))) == [1, 2, 3, 4]
+    assert list(stream((1, 6, 2))) == [1, 3, 5]
 
-def test_compress_op_with_ints() -> None:
-    data = ["a", "b", "c", "d"]
-    selectors = [1, 0, 1, 1]
-    result = to_list(compress_op(selectors)(data))
-    assert result == ["a", "c", "d"]
 
+def test_stream_from_callable_count():
+    it = iter([10, 20, 30, 40])
+    def f():
+        return next(it)
+    assert list(stream(f, count=3)) == [10, 20, 30]
 
-def test_take_op_basic() -> None:
-    result = to_list(take_op(3)(range(10)))
-    assert result == [0, 1, 2]
 
+def test_stream_from_callable_sentinel():
+    data = iter([1, 2, 3, None, 99])
+    def reader():
+        return next(data)
+    
+    assert list(stream(reader, sentinel=None)) == [1, 2, 3]
 
-def test_take_op_more_than_available() -> None:
-    result = to_list(take_op(10)(range(5)))
-    assert result == [0, 1, 2, 3, 4]
 
+# pipeline composition with built-ins
 
-def test_take_op_negative_raises() -> None:
-    with pytest.raises(ValueError):
-        take_op(-1)
+def test_pipeline_with_map():
+    result = pipeline(stream((0, 5)), partial(map, double))
+    assert list(result) == [0, 2, 4, 6, 8]
 
 
-def test_drop_op_basic() -> None:
-    result = to_list(drop_op(3)(range(6)))
-    assert result == [3, 4, 5]
+def test_pipeline_with_filter():
+    result = pipeline(stream((0, 10)), partial(filter, is_even))
+    assert list(result) == [0, 2, 4, 6, 8]
 
 
-def test_drop_op_more_than_available() -> None:
-    result = to_list(drop_op(10)(range(5)))
-    assert result == []
+def test_pipeline_chained():
+    result = pipeline(
+        stream((0, 10)),
+        partial(map, double),
+        partial(filter, greater_than_five),
+        partial(map, inc),
+    )
+    assert list(result) == [7, 9, 11, 13, 15, 17, 19]
 
 
-def test_drop_op_negative_raises() -> None:
-    with pytest.raises(ValueError):
-        drop_op(-1)
+def test_pipeline_with_zip():
+    result = pipeline(
+        stream((0, 5)),
+        lambda it: zip(it, stream(slice(10, 15))),
+    )
+    assert list(result) == [(0, 10), (1, 11), (2, 12), (3, 13), (4, 14)]
 
 
-def test_take_while_op_basic() -> None:
-    def less_than_five(x: int) -> bool:
-        return x < 5
+def test_pipeline_with_reduce_materialize_inside():
+    result = pipeline(
+        stream((1, 6)),
+        lambda it: [reduce(lambda a, b: a * b, it)],
+    )
+    assert list(result) == [120]
 
-    result = to_list(take_while_op(less_than_five)(range(10)))
-    assert result == [0, 1, 2, 3, 4]
 
+# Custom user operation
 
-def test_drop_while_op_basic() -> None:
-    def less_than_five(x: int) -> bool:
-        return x < 5
-
-    result = to_list(drop_while_op(less_than_five)(range(10)))
-    assert result == [5, 6, 7, 8, 9]
-
-
-def test_reduce_op_sum() -> None:
-    def add(acc: int, x: int) -> int:
-        return acc + x
-
-    result = to_list(reduce_op(add, 0)(range(5)))
-    assert result == [10]
-
-
-def test_reduce_op_product() -> None:
-    def multiply(acc: int, x: int) -> int:
-        return acc * x
-
-    result = to_list(reduce_op(multiply, 1)(range(1, 5)))
-    assert result == [24]
-
-
-def test_zip_op_basic() -> None:
-    left = [1, 2, 3]
-    right = ["a", "b", "c"]
-    result = to_list(zip_op(right)(left))
-    assert result == [(1, "a"), (2, "b"), (3, "c")]
-
-
-def test_zip_op_different_lengths_left_shorter() -> None:
-    left = [1, 2]
-    right = ["a", "b", "c"]
-    result = to_list(zip_op(right)(left))
-    assert result == [(1, "a"), (2, "b")]
-
-
-def test_zip_op_different_lengths_right_shorter() -> None:
-    left = [1, 2, 3]
-    right = ["a"]
-    result = to_list(zip_op(right)(left))
-    assert result == [(1, "a")]
-
-
-def test_zip_op_empty_left() -> None:
-    left: list[int] = []
-    right = ["a", "b"]
-    result = to_list(zip_op(right)(left))
-    assert result == []
-
-
-def test_zip_op_empty_right() -> None:
-    left = [1, 2]
-    right: list[str] = []
-    result = to_list(zip_op(right)(left))
-    assert result == []
-
-
-def test_zip_op_multiple_streams() -> None:
-    a = [1, 2, 3]
-    b = ["x", "y", "z"]
-    c = [True, False, True]
-    result = to_list(zip_op(b, c)(a))
-    assert result == [(1, "x", True), (2, "y", False), (3, "z", True)]
-
-
-def test_zip_op_with_pipeline_and_take() -> None:
-    # Ensure laziness with take_op on zipped stream
-    left = range_generator(0, 100)
-    right = (chr(ord("a") + i) for i in range(100))
-    zipped = zip_op(right)(left)
-    limited = take_op(5)(zipped)
-    result = to_list(limited)
-    assert result == [(0, "a"), (1, "b"), (2, "c"), (3, "d"), (4, "e")]
-
-
-# Test Pipeline - chain operations directly without pipeline() for complex cases
-def test_pipeline_simple() -> None:
-    result = to_list(pipeline(range_generator(0, 10)))
-    assert result == [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-
-
-def test_pipeline_with_map() -> None:
-    def double(x: int) -> int:
-        return x * 2
-
-    gen = range_generator(0, 10)
-    mapped = map_op(double)(gen)
-    result = to_list(mapped)
-    assert result == [0, 2, 4, 6, 8, 10, 12, 14, 16, 18]
-
-
-def test_pipeline_chained() -> None:
-    def double(x: int) -> int:
-        return x * 2
-
-    def greater_than_five(x: int) -> bool:
-        return x > 5
-
-    def increment(x: int) -> int:
-        return x + 1
-
-    gen = range_generator(0, 10)
-    mapped1 = map_op(double)(gen)
-    filtered = filter_op(greater_than_five)(mapped1)
-    mapped2 = map_op(increment)(filtered)
-    result = to_list(mapped2)
-    assert result == [7, 9, 11, 13, 15, 17, 19]
-
-
-def test_pipeline_complex() -> None:
-    def square(x: int) -> int:
-        return x**2
-
-    def is_even(x: int) -> bool:
-        return x % 2 == 0
-
-    gen = range_generator(1, 11)
-    mapped = map_op(square)(gen)
-    filtered = filter_op(is_even)(mapped)
-    taken = take_op(3)(filtered)
-    result = to_list(taken)
-    assert result == [4, 16, 36]
-
-
-def test_pipeline_with_drop() -> None:
-    def times_ten(x: int) -> int:
-        return x * 10
-
-    gen = range_generator(0, 10)
-    dropped = drop_op(5)(gen)
-    mapped = map_op(times_ten)(dropped)
-    result = to_list(mapped)
-    assert result == [50, 60, 70, 80, 90]
-
-
-def test_pipeline_with_compress() -> None:
-    gen = sequence_generator([10, 20, 30, 40, 50])
-    compressed = compress_op([True, False, True, True, False])(gen)
-    result = to_list(compressed)
-    assert result == [10, 30, 40]
-
-
-def test_pipeline_empty() -> None:
-    result = to_list(pipeline(range_generator(0, 0)))
-    assert result == []
-
-
-# Test Aggregators
-def test_to_list_aggregator() -> None:
-    result = to_list(range(5))
-    assert result == [0, 1, 2, 3, 4]
-
-
-def test_to_set_aggregator() -> None:
-    result = to_set([1, 2, 2, 3, 3, 3])
-    assert result == {1, 2, 3}
-
-
-def test_to_dict_aggregator() -> None:
-    result = to_dict([("a", 1), ("b", 2), ("c", 3)])
-    assert result == {"a": 1, "b": 2, "c": 3}
-
-
-def test_count_aggregator() -> None:
-    result = count(range(10))
-    assert result == 10
-
-
-def test_sum_all_aggregator() -> None:
-    result = sum_all([1, 2, 3, 4, 5])
-    assert result == 15.0
-
-
-def test_product_all_aggregator() -> None:
-    result = product_all([2, 3, 4])
-    assert result == 24
-
-
-def test_product_all_empty_raises() -> None:
-    with pytest.raises(ValueError):
-        product_all([])
-
-
-def test_min_value_aggregator() -> None:
-    result = min_value([5, 2, 8, 1, 9])
-    assert result == 1
-
-
-def test_min_value_empty_raises() -> None:
-    with pytest.raises(ValueError):
-        min_value([])
-
-
-def test_max_value_aggregator() -> None:
-    result = max_value([5, 2, 8, 1, 9])
-    assert result == 9
-
-
-def test_max_value_empty_raises() -> None:
-    with pytest.raises(ValueError):
-        max_value([])
-
-
-def test_first_aggregator() -> None:
-    result = first(range(5))
-    assert result == 0
-
-
-def test_first_empty_raises() -> None:
-    with pytest.raises(ValueError):
-        first([])
-
-
-def test_last_aggregator() -> None:
-    result = last(range(5))
-    assert result == 4
-
-
-def test_last_empty_raises() -> None:
-    with pytest.raises(ValueError):
-        last([])
-
-
-# Integration Tests
-def test_full_pipeline_integration() -> None:
-    """Test a complete pipeline with multiple operations and aggregation."""
-
-    def is_even(x: int) -> bool:
-        return x % 2 == 0
-
-    def half(x: int) -> int:
-        return x // 2
-
-    gen = range_generator(1, 101)
-    filtered = filter_op(is_even)(gen)
-    mapped = map_op(half)(filtered)
-    taken = take_op(10)(mapped)
-    result = sum_all(taken)
-    assert result == 55.0
-
-
-def test_pipeline_with_custom_function() -> None:
-    """Test pipeline with custom transformation."""
-
-    def square_if_even(x: int) -> int:
-        return x**2 if x % 2 == 0 else x
-
-    gen = range_generator(1, 6)
-    mapped = map_op(square_if_even)(gen)
-    result = to_list(mapped)
-    assert result == [1, 4, 3, 16, 5]
-
-
-def test_lazy_evaluation() -> None:
-    """Test that pipeline is truly lazy."""
-    call_count = 0
-
-    def counting_mapper(x: int) -> int:
-        nonlocal call_count
-        call_count += 1
-        return x * 2
-
-    gen = range_generator(0, 100)
-    taken = take_op(3)(gen)
-    mapped = map_op(counting_mapper)(taken)
-    result = to_list(mapped)
-
-    assert result == [0, 2, 4]
-    assert call_count == 3
-
-
-def test_pipeline_type_transformations() -> None:
-    """Test pipeline with multiple type transformations."""
-
-    def double(x: int) -> int:
-        return x * 2
-
-    def to_str(x: int) -> str:
-        return str(x)
-
-    def format_num(s: str) -> str:
-        return f"num_{s}"
-
-    gen = range_generator(1, 6)
-    mapped1 = map_op(double)(gen)
-    mapped2 = map_op(to_str)(mapped1)
-    mapped3 = map_op(format_num)(mapped2)
-    result = to_list(mapped3)
-    assert result == ["num_2", "num_4", "num_6", "num_8", "num_10"]
+def test_pipeline_with_custom_generator(sample_numbers):
+    def custom_op(it):
+        for x in it:
+            if x % 3 == 0:
+                yield x * 10
+    result = pipeline(stream(sample_numbers), custom_op)
+    assert list(result) == [30]
 
 
 @pytest.mark.parametrize(
-    "n,expected",
+    "collector,expected",
     [
-        (5, [0, 1, 2, 3, 4]),
-        (1, [0]),
-        (0, []),
+        (list, [0, 1, 2, 3, 4]),
+        (set, {0, 1, 2, 3, 4}),
+        (tuple, (0, 1, 2, 3, 4)),
     ],
 )
-def test_pipeline_parametrized(n: int, expected: list[int]) -> None:
-    """Parametrized test for different pipeline lengths."""
-    gen = range_generator(0, 10)
-    taken = take_op(n)(gen)
-    result = to_list(taken)
-    assert result == expected
+def test_aggregate_collectors(collector, expected):
+    assert aggregate(stream((0, 5)), collector) == expected
+
+
+def test_aggregate_default_list():
+    out = aggregate(stream((0, 5)))
+    assert out == [0, 1, 2, 3, 4]
+    assert isinstance(out, list)
+
+
+# Laziness demonstrations
+
+def test_laziness_no_eval_until_consumed():
+    seen = []
+    def track(x):
+        seen.append(x)
+        return x * 2
+    result = pipeline(stream((0, 5)), partial(map, track))
+    assert len(seen) == 0  # not evaluated yet
+    list(result)
+    assert len(seen) == 5
+
+
+def test_laziness_partial_consumption():
+    seen = []
+    def track(x):
+        seen.append(x)
+        return x * 2
+    result = pipeline(stream((0, 1000000)), partial(map, track))
+    head = list(itertools.islice(result, 3))
+    assert head == [0, 2, 4]
+    assert len(seen) == 3
+
+
+def test_laziness_early_termination():
+    seen = []
+    def track(x):
+        seen.append(x)
+        return x * 2
+    result = pipeline(stream((0, 100)), partial(map, track), partial(filter, lambda x: x > 10))
+    first = next(iter(result))
+    assert first == 12
+    assert len(seen) == 7  # 0..6 processed
+
+
+def test_laziness_infinite_callable_with_islice():
+    # Infinite-like callable; only consumed part is computed
+    x = -1
+    def f():
+        nonlocal x
+        x += 1
+        return x
+    seq = stream(f, count=None, sentinel=None)
+    seq = stream(f, count=10)
+    picked = list(itertools.islice(seq, 5))
+    assert picked == [0, 1, 2, 3, 4]
+
+
+@pytest.mark.parametrize(
+    "start,stop,op,expected",
+    [
+        (0, 5, partial(map, double), [0, 2, 4, 6, 8]),
+        (0, 5, partial(filter, is_even), [0, 2, 4]),
+        (1, 6, partial(map, square), [1, 4, 9, 16, 25]),
+    ],
+)
+def test_pipeline_parametrized(start, stop, op, expected):
+    assert list(pipeline(stream((start, stop)), op)) == expected
