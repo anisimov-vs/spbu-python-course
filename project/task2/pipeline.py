@@ -4,29 +4,49 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Iterator, Mapping
-from functools import reduce
-from typing import Any, TypeVar
+from typing import Literal, Optional, TypeVar, cast, overload
 
 T = TypeVar("T")
 U = TypeVar("U")
+K = TypeVar("K")
+V = TypeVar("V")
 
 _MISSING = object()
 
 
+@overload
+def stream(source: Callable[[], T], *, count: int, sentinel: object = _MISSING, dict_mode: str = "keys") -> Iterator[T]: ...
+@overload
+def stream(source: Callable[[], T], *, count: None = None, sentinel: object, dict_mode: str = "keys") -> Iterator[T]: ...
+@overload
 def stream(
-    source: Any,
+    source: Mapping[K, V], *, count: int | None = None, sentinel: object = _MISSING, dict_mode: Literal["keys"] = "keys"
+) -> Iterator[K]: ...
+@overload
+def stream(
+    source: Mapping[K, V], *, count: int | None = None, sentinel: object = _MISSING, dict_mode: Literal["values"]
+) -> Iterator[V]: ...
+@overload
+def stream(
+    source: Mapping[K, V], *, count: int | None = None, sentinel: object = _MISSING, dict_mode: Literal["items"]
+) -> Iterator[tuple[K, V]]: ...
+@overload
+def stream(source: Iterable[T], *, count: int | None = None, sentinel: object = _MISSING, dict_mode: str = "keys") -> Iterator[T]: ...
+
+
+def stream(
+    source: object,
     *,
     count: int | None = None,
-    sentinel: Any = _MISSING,
+    sentinel: object = _MISSING,
     dict_mode: str = "keys",
-) -> Iterator[Any]:
+) -> Iterator[object]:
     """
     Create a lazy stream from diverse source types.
 
     Supported sources:
     - Iterable (lists, tuples, sets, strings, generators): yields elements lazily
     - Mapping (dict): yields by dict_mode='keys' | 'values' | 'items'
-    - slice: interpreted as a numeric range, e.g., slice(0, 5, 2) -> 0,2,4
     - callable: repeatedly call the function
         * if count is provided: call exactly count times
         * if sentinel is provided: call until result == sentinel
@@ -40,27 +60,18 @@ def stream(
     Yields:
         Lazy sequence of elements derived from source.
     """
-    # slice -> numeric range
-    if isinstance(source, slice):
-        start = 0 if source.start is None else source.start
-        stop = source.stop
-        step = 1 if source.step is None else source.step
-        if stop is None:
-            raise ValueError("slice.stop must be provided for finite range")
-        yield from range(start, stop, step)
-        return
-
     # callable -> repeated calls, controlled by count or sentinel
     if callable(source):
+        callable_source = cast(Callable[[], object], source)
         if count is None and sentinel is _MISSING:
             raise ValueError("callable source requires 'count' or 'sentinel'")
         if count is not None:
             for _ in range(count):
-                yield source()
+                yield callable_source()
             return
         # sentinel mode
         while True:
-            value = source()
+            value = callable_source()
             if value == sentinel:
                 break
             yield value
@@ -84,22 +95,37 @@ def stream(
         return
 
     raise TypeError(
-        "Unsupported source type for stream(); provide an iterable, mapping, slice, "
-        "numeric tuple/list, or callable with count/sentinel."
+        "Unsupported source type for stream(); provide an iterable, mapping, "
+        "or callable with count/sentinel."
     )
 
 
-def pipeline(source: Iterable[T], *operations: Callable[[Iterable], Iterable]) -> Iterable:
+def pipeline(source: Iterable[T], *operations: Callable[[Iterable[object]], Iterable[object]]) -> Iterable[object]:
     """
     Lazily apply a sequence of operations to a source.
 
     Each operation must accept an iterable and return an iterable (e.g., map, filter, zip via lambda).
     """
-    return reduce(lambda data, op: op(data), operations, source)
+    result: Iterable[object] = source
+    for op in operations:
+        result = op(result)
+    return result
 
 
-def aggregate(iterable: Iterable[T], collector: Callable[[Iterable[T]], Any] = list) -> Any:
+@overload
+def aggregate(iterable: Iterable[T]) -> list[T]: ...
+
+
+@overload
+def aggregate(iterable: Iterable[T], collector: Callable[[Iterable[T]], U]) -> U: ...
+
+
+def aggregate(
+    iterable: Iterable[T], collector: Optional[Callable[[Iterable[T]], object]] = None
+) -> object:
     """
     Collect a lazy stream into a concrete collection using the provided collector.
     """
+    if collector is None:
+        return list(iterable)
     return collector(iterable)
